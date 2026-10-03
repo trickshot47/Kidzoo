@@ -325,7 +325,7 @@
         <button type='button' class='btn btn-square rounded-circle w-40 h-40 order pointer z-30 bg-dark-very-light position-absolute d-flex align-items-center justify-content-center text-white' class:d-none={!episodeList?.length} data-toggle='tooltip' data-placement='top' data-target-breakpoint='md' data-title='Reverse Episodes' use:click={()=> { episodeOrder = !episodeOrder }}>
           <svelte:component this={episodeOrder ? ArrowDown01 : ArrowUp10} size='2rem' />
         </button>
-        <EpisodeList bind:episodeLoad={episodeLoad} media={staticMedia} {episodeOrder} {userProgress} {watched} {hasSpoiler} episodeCount={getMediaMaxEp(media)} {play} />
+        <EpisodeList bind:episodeLoad={episodeLoad} media={staticMedia} {episodeOrder} {userProgress} {watched} {hasSpoiler} episodeCount={getMediaMaxEp(media)} {play} class='flex-1' />
       </div>
     </div>
   </div>

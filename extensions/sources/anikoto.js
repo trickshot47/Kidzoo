@@ -45,9 +45,10 @@ export default new class AniKotoSource extends AbstractSource {
         if (!results?.length) continue
         // Try to find an exact or close match
         const normalized = title.toLowerCase().replace(/[^a-z0-9\s]/g, '').trim()
-        const match = results.find(r => {
+        const exactMatch = results.find(r => (r.title || '').toLowerCase().replace(/[^a-z0-9\s]/g, '').trim() === normalized)
+        const match = exactMatch || results.find(r => {
           const rTitle = (r.title || '').toLowerCase().replace(/[^a-z0-9\s]/g, '').trim()
-          return rTitle === normalized || rTitle.startsWith(normalized) || normalized.startsWith(rTitle)
+          return rTitle.startsWith(normalized) || normalized.startsWith(rTitle)
         }) || results[0]
         if (match?.animeId) return { animeId: match.animeId, slug: match.slug }
       } catch (_) { /* try next title */ }
