@@ -99,6 +99,7 @@ module.exports = (parentDir, alias = {}, aliasFields = 'browser', filename = 'ap
 <meta name="theme-color" content="#17191C">
 <meta name="darkreader-lock">
 <meta name="color-scheme" content="dark">
+<meta name="google-site-verification" content="weiEFsSVPHwEqmJui6IpP0tEnzyNEgo1wDs_53DY_ho" />
 
 <!-- SEO Meta Tags -->
 <title>KidZoo - Watch Free Anime Online</title>
