@@ -9,7 +9,12 @@ globalThis.fetch = async (url, options = {}) => {
     try {
       const parsed = new URL(targetUrl)
       if (['http:', 'https:'].includes(parsed.protocol) && parsed.hostname !== 'graphql.anilist.co' && parsed.hostname !== 'cp.cloudflare.com' && parsed.hostname !== 'localhost' && parsed.hostname !== '127.0.0.1' && parsed.hostname !== location.hostname) {
-        targetUrl = `${location.origin}/cors-proxy?url=${encodeURIComponent(targetUrl)}`
+        // Extract real origin if location.origin is 'null' (blob workers)
+        let origin = location.origin
+        if (origin === 'null' && location.href.startsWith('blob:')) {
+          origin = location.href.slice(5).split('/')[0] + '//' + location.href.slice(5).split('/')[2]
+        }
+        targetUrl = `${origin}/cors-proxy?url=${encodeURIComponent(targetUrl)}`
       }
     } catch {}
   }
