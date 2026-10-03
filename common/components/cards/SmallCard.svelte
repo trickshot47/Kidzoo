@@ -111,6 +111,7 @@
   })
 </script>
 
+{#if media}
 <div bind:this={container} class='d-flex px-md-20 px-sm-10 px-5 py-20 position-relative small-card-ct' class:not-reactive={!$reactive} use:hoverClick={[viewMedia, setHoverState, viewMedia]} on:focus={handleFocus}>
   {#if preview}
     <PreviewCard {media} {type} {_variables} bind:element={previewCard}/>
@@ -159,6 +160,7 @@
     </div>
   </div>
 </div>
+{/if}
 
 <style>
   .airing::before {
