@@ -82,7 +82,8 @@ module.exports = (parentDir, alias = {}, aliasFields = 'browser', filename = 'ap
   plugins: [
     new CopyWebpackPlugin({
       patterns: [
-        { from: join(__dirname, 'public') }
+        { from: join(__dirname, 'public') },
+        { from: resolve(__dirname, '../extensions'), to: 'extensions' }
       ]
     }),
     new HtmlWebpackPlugin({
