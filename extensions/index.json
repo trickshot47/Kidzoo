@@ -2,8 +2,8 @@
   {
     "id": "anikoto",
     "name": "AniKoto",
-    "version": "1.0.2",
-    "main": "sources/anikoto",
+    "version": "1.0.3",
+    "main": "sources/anikoto.js",
     "update": "/extensions/index.json",
     "type": "stream",
     "speed": "fast",
