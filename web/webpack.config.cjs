@@ -50,19 +50,14 @@ module.exports = [
         });
 
         devServer.app.use('/cors-proxy', async (req, res) => {
+          // Forward to Vercel production cors-proxy so localhost mirrors production exactly
+          const VERCEL_CORS_PROXY = 'https://kidzoo-nodejs.vercel.app/cors-proxy';
           const targetUrl = req.query.url;
           if (!targetUrl) return res.status(400).send('Missing url parameter');
           
           try {
-            const fetchReq = new Request(targetUrl, {
-              method: req.method,
-              headers: {
-                'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-                'accept': '*/*',
-                'accept-language': 'en-US,en;q=0.9',
-              },
-            });
-            const fetchRes = await fetch(fetchReq);
+            const forwardUrl = `${VERCEL_CORS_PROXY}?url=${encodeURIComponent(targetUrl)}`;
+            const fetchRes = await fetch(forwardUrl, { method: req.method });
             res.status(fetchRes.status);
             fetchRes.headers.forEach((val, key) => {
               if (!['content-encoding', 'content-length', 'connection'].includes(key.toLowerCase())) {
