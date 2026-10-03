@@ -32,7 +32,13 @@ export default new class AniKotoSource extends AbstractSource {
   }
 
   get #preferDub() {
-    return this.settings?.preferDub ?? false
+    return this.settings?.preferDub ?? true
+  }
+
+  // Route all API fetches through the CORS proxy so the browser doesn't block them
+  async #proxiedFetch(url) {
+    const proxyUrl = `${location.origin}/cors-proxy?url=${encodeURIComponent(url)}`
+    return fetch(proxyUrl)
   }
 
   /**
@@ -43,7 +49,7 @@ export default new class AniKotoSource extends AbstractSource {
   async #searchAnime(titles) {
     for (const title of titles) {
       try {
-        const res = await fetch(`${this.#apiBase}/search?keyword=${encodeURIComponent(title)}`)
+        const res = await this.#proxiedFetch(`${this.#apiBase}/search?keyword=${encodeURIComponent(title)}`)
         if (!res.ok) continue
         const json = await res.json()
         const results = json?.results?.data
@@ -67,7 +73,7 @@ export default new class AniKotoSource extends AbstractSource {
    * @returns {Promise<string|null>} The server_ids string for the episode
    */
   async #getEpisodeServerIds(animeId, episodeNumber) {
-    const res = await fetch(`${this.#apiBase}/episodes/${animeId}`)
+    const res = await this.#proxiedFetch(`${this.#apiBase}/episodes/${animeId}`)
     if (!res.ok) return null
     const json = await res.json()
     const episodes = json?.results?.episodes
@@ -82,7 +88,7 @@ export default new class AniKotoSource extends AbstractSource {
    * @returns {Promise<Array>} List of server objects with link_id, name, type
    */
   async #getServers(serverIds) {
-    const res = await fetch(`${this.#apiBase}/servers?ids=${encodeURIComponent(serverIds)}`)
+    const res = await this.#proxiedFetch(`${this.#apiBase}/servers?ids=${encodeURIComponent(serverIds)}`)
     if (!res.ok) return []
     const json = await res.json()
     return json?.results || []
@@ -94,7 +100,7 @@ export default new class AniKotoSource extends AbstractSource {
    * @returns {Promise<string|null>} The embed URL
    */
   async #getStreamUrl(linkId) {
-    const res = await fetch(`${this.#apiBase}/stream?id=${encodeURIComponent(linkId)}`)
+    const res = await this.#proxiedFetch(`${this.#apiBase}/stream?id=${encodeURIComponent(linkId)}`)
     if (!res.ok) return null
     const json = await res.json()
     return json?.results?.url || null
@@ -187,7 +193,7 @@ export default new class AniKotoSource extends AbstractSource {
 
   async validate() {
     try {
-      const res = await fetch(this.#healthUrl)
+      const res = await this.#proxiedFetch(this.#healthUrl)
       const json = await res.json()
       return json?.success === true
     } catch {
