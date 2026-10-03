@@ -788,10 +788,10 @@ export const defaults = {
   font: undefined,
   angle: 'default',
   extensionsNew: {
-    [`${typeof window !== 'undefined' ? window.location.origin : ''}/extensions/index.json/anikoto-stream`]: {
+    [`${typeof window !== 'undefined' ? window.location.origin : ''}/extensions/index.json/anikoto-stream-v3`]: {
       enabled: true,
       settings: {
-        apiUrl: 'https://anikoto-api-psi.vercel.app/api',
+        apiUrl: 'https://anikoto-api-psi.vercel.app',
         preferDub: true
       }
     }
@@ -881,21 +881,21 @@ export const historyDefaults = {
  */
 export const extensionDefaults = {
   extensionSources: {
-    [`${window.location.origin}/extensions/index.json/anikoto-stream`]: {
+    [`${window.location.origin}/extensions/index.json/anikoto-stream-v3`]: {
       name: 'AniKoto',
       author: 'KidZoo',
       description: 'AniKoto source extension for streaming anime.',
-      type: 'source',
+      type: 'stream',
       main: `${window.location.origin}/extensions/sources/anikoto.js`,
       update: `${window.location.origin}/extensions/index.json`,
-      id: 'anikoto-stream',
+      id: 'anikoto-stream-v3',
       settings: [
         {
           key: 'apiUrl',
           name: 'AniKoto API URL',
           description: 'The AniKoto streaming backend URL.',
           type: 'string',
-          default: 'https://anikoto-api-psi.vercel.app/api'
+          default: 'https://anikoto-api-psi.vercel.app'
         },
         {
           key: 'preferDub',
@@ -913,17 +913,17 @@ export const extensionDefaults = {
         name: 'AniKoto',
         author: 'KidZoo',
         description: 'AniKoto source extension for streaming anime.',
-        type: 'source',
+        type: 'stream',
         main: `${window.location.origin}/extensions/sources/anikoto.js`,
         update: `${window.location.origin}/extensions/index.json`,
-        id: 'anikoto-stream',
+        id: 'anikoto-stream-v3',
         settings: [
           {
             key: 'apiUrl',
             name: 'AniKoto API URL',
             description: 'The AniKoto streaming backend URL.',
             type: 'string',
-            default: 'https://anikoto-api-psi.vercel.app/api'
+            default: 'https://anikoto-api-psi.vercel.app'
           },
           {
             key: 'preferDub',

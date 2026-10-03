@@ -511,10 +511,10 @@
   </div>
   <div bind:this={container} class='scroll-container h-full px-30 overflow-y-scroll'>
     {#await $errors then errorResult}
-      {#if errorResult?.errorCardOnly && $results?.resolved && !$results?.torrents?.length}
+      {#if $results?.resolved && !$results?.torrents?.length}
         <div class='mt-80'>
           {hideErrors()}
-          <ErrorCard promise={Promise.resolve(errorResult)} />
+          <ErrorCard promise={Promise.resolve(errorResult?.errors?.length ? errorResult : { errors: [{ message: 'found no results' }] })} />
         </div>
       {/if}
     {/await}

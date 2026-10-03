@@ -1,6 +1,6 @@
 [
   {
-    "id": "anikoto",
+    "id": "anikoto-stream-v3",
     "name": "AniKoto",
     "version": "1.0.3",
     "main": "sources/anikoto.js",

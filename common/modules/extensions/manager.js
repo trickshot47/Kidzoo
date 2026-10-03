@@ -359,7 +359,7 @@ class ExtensionManager {
       if (toAdd.length || toRemove.length) {
         for (const key of toAdd) {
           const defaults = Object.fromEntries((newSources[key].settings || []).map(setting => [setting.key, setting.default ?? null]))
-          extensionsNew[key] = { enabled: false, settings: defaults }
+          extensionsNew[key] = { enabled: true, settings: defaults }
         }
         for (const key of toRemove) delete extensionsNew[key]
         if (toAdd.length) debug(`Synced ${toAdd.length} new extension(s) into extensionsNew:`, toAdd)
@@ -714,7 +714,7 @@ class ExtensionManager {
                 const key = getKey(extension)
                 if (!extensionsNew[key]) {
                   const defaults = Object.fromEntries((extension.settings || []).map(setting => [setting.key, setting.default ?? null]))
-                  extensionsNew[key] = { enabled: false, settings: defaults }
+                  extensionsNew[key] = { enabled: true, settings: defaults }
                 }
               })
               return { ...value, extensionsNew }
