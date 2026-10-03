@@ -1093,6 +1093,7 @@
         title="Streaming Embed"
         src={src}
         allowfullscreen
+        allow="autoplay; fullscreen"
         class="position-absolute h-full w-full z-20 border-0"
         on:load={() => { hideBuffering(); buffering = false; }}
       ></iframe>
@@ -1170,7 +1171,7 @@
       </div>
     {/if}
     <div class='d-flex justify-content-center bottom-0 d-title d-filler' class:col-4={$settings.playerTitleTop}>
-      <TorrentStats visible={!SUPPORTS.isAndroid || !$pictureInPicture} />
+      <TorrentStats visible={(!SUPPORTS.isAndroid || !$pictureInPicture) && !media?.stream} />
       {#if resolvePrompt}
         <div class='position-absolute text-monospace rounded skipPrompt d-flex flex-column align-items-center text-center bg-dark-light p-20 z-50 mt-60' class:w-500={SUPPORTS.isAndroid}>
           <div class='skipFont'>

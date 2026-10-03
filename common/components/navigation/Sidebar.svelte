@@ -56,14 +56,7 @@
   <div class='sidebar-overlay z--1 pointer-events-none h-full position-absolute' class:animated={$settings.expandingSidebar} />
   <div class='sidebar-menu h-full d-flex flex-column m-0 pb-5 animate' class:br-10={!$settings.expandingSidebar}>
     <div class='w-50 top-0 flex-shrink-0 pointer-events-none {$status !== 'online' ? `h-25` : `${COMMON.getPlatformInfo().platform === `darwin` && !fullScreen ? `h-25` : `h-0`}`}' class:status-transition={statusTransition}/>
-    <div class='d-flex justify-content-center z-102' style='width: var(--sidebar-width); margin-top: 1rem !important'>
-      <NavLink sidebar={true} center={false} click={goBack} class={`h-auto w-30 ${$canGoBack ? 'active' : ''}`} css='rounded-left-block p-0 m-0'>
-        <MoveLeft size='2.5rem' class='flex-shrink-0 rounded m-0' strokeWidth='2.5' />
-      </NavLink>
-      <NavLink sidebar={true} center={false} click={goForward} class={`h-auto w-30 ${$canGoForward ? 'active' : ''}`} css='rounded-right-block p-0 m-0'>
-        <MoveRight size='2.5rem' class='flex-shrink-0 rounded m-0' strokeWidth='2.5' />
-      </NavLink>
-    </div>
+
     <div class='d-flex flex-column align-items-center' style='width: var(--sidebar-width)'>
       <img src='./icon_filled.png' tabindex='-1' class='w-50 h-50 m-10 pointer d-sm-h-none p-5' alt='ico' use:click={() => page.navigateTo(page.HOME)} />
     </div>

@@ -333,6 +333,14 @@ class HistoryManager {
         this.goForward()
       }
     })
+    window.addEventListener('popstate', (event) => {
+      if (event.state && typeof event.state.index === 'number') {
+        const targetIndex = event.state.index
+        if (targetIndex !== this.currentIndex) {
+          this.navigateTo(targetIndex, targetIndex < this.currentIndex)
+        }
+      }
+    })
   }
 
   /**
@@ -352,6 +360,7 @@ class HistoryManager {
       )
     }
     this.addHistoryEntry('page', 'home')
+    window.history.replaceState({ index: this.currentIndex }, '')
     this.syncState()
   }
 
@@ -400,27 +409,7 @@ class HistoryManager {
       debug('goBack ignored, fixed modal prompts are open')
       return
     }
-    const current = this.history[this.currentIndex]
-    let skipNavigation = false
-    if (current) {
-      if (current.type === 'modal') {
-        const differs = JSON.stringify(modal.value) !== JSON.stringify(current.value)
-        if (differs && this.currentIndex === this.history.length - 1 && !current.isTemp) {
-          const tempState = { type: 'modal', value: modal.value, timestamp: Date.now(), isTemp: true }
-          this.history.splice(this.currentIndex + 1, 0, tempState)
-          debug('Temp entry added for forward navigation', JSON.stringify(tempState))
-          this.setIgnoreNext(() => modal.set(current.value))
-          skipNavigation = true
-          debug('Modal restored without moving history', current.value)
-          this.syncState()
-        }
-      }
-    }
-    if (this.currentIndex > 0 && !skipNavigation) {
-      this.navigateTo(this.currentIndex - 1, true)
-      this.syncState()
-      debug('goBack finished', JSON.stringify({ currentIndex: this.currentIndex, historyLength: this.history.length }))
-    }
+    window.history.back()
   }
 
   /**
@@ -436,22 +425,7 @@ class HistoryManager {
       }
       this.lockNavigation()
     }
-    if (this.currentIndex < this.history.length - 1) {
-      drawerOpen.set(false)
-      const next = this.history[this.currentIndex + 1]
-      if (next?.isTemp) {
-        debug('Navigating to temp forward entry', JSON.stringify(next))
-        if (next.type === 'modal') {
-          if (JSON.stringify(modal.value) !== JSON.stringify(next.value)) this.navigateTo(this.currentIndex + 1)
-          else this.currentIndex++
-        }
-        return
-      }
-      if (next) {
-        debug('Navigating forward to next history entry', JSON.stringify(next))
-        this.navigateTo(this.currentIndex + 1)
-      }
-    }
+    window.history.forward()
   }
 
   /**
@@ -505,6 +479,7 @@ class HistoryManager {
     this.history = this.history.slice(0, this.currentIndex + 1)
     this.history.push(state)
     this.currentIndex = this.history.length - 1
+    window.history.pushState({ index: this.currentIndex }, '')
     debug('History added', JSON.stringify(state), 'currentIndex', this.currentIndex, 'historyLength', this.history.length)
     this.syncState()
   }
