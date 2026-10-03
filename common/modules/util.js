@@ -788,10 +788,10 @@ export const defaults = {
   font: undefined,
   angle: 'default',
   extensionsNew: {
-    'http://localhost:3000/extensions/index.json/anikoto-stream': {
+    [`${typeof window !== 'undefined' ? window.location.origin : ''}/extensions/index.json/anikoto-stream`]: {
       enabled: true,
       settings: {
-        apiUrl: 'http://localhost:4444/api',
+        apiUrl: 'https://anikoto-api-psi.vercel.app/api',
         preferDub: true
       }
     }
