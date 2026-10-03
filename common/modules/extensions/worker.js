@@ -9,7 +9,7 @@ globalThis.fetch = async (url, options = {}) => {
     try {
       const parsed = new URL(targetUrl)
       if (['http:', 'https:'].includes(parsed.protocol) && parsed.hostname !== 'graphql.anilist.co' && parsed.hostname !== 'cp.cloudflare.com' && parsed.hostname !== 'localhost' && parsed.hostname !== '127.0.0.1' && parsed.hostname !== location.hostname) {
-        targetUrl = `/cors-proxy?url=${encodeURIComponent(targetUrl)}`
+        targetUrl = `${location.origin}/cors-proxy?url=${encodeURIComponent(targetUrl)}`
       }
     } catch {}
   }
