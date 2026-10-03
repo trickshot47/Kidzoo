@@ -24,7 +24,7 @@ export const VALID_SCHEMES = /^(https?:|gh:|npm:|file:|extension:)/
  * @returns {Worker} The created worker instance.
  */
 function createWorker(source) {
-  return new Worker(new URL('@/modules/extensions/worker.js', import.meta.url), { type: 'module', name: getKey(source) })
+  return new Worker(new URL('@/modules/extensions/worker2.js', import.meta.url), { type: 'module', name: getKey(source) })
 }
 
 /**
@@ -329,9 +329,9 @@ class ExtensionManager {
   pending = new Map()
   /** @type {Map<string, Worker>} */
   #pendingWorkers = new Map()
-  /** @type {import('simple-store-svelte').Writable<Record<string, import('comlink').Remote<import('@/modules/extensions/worker.js').Worker>>>} */
+  /** @type {import('simple-store-svelte').Writable<Record<string, import('comlink').Remote<import('@/modules/extensions/worker2.js').Worker>>>} */
   activeWorkers = writable({})
-  /** @type {import('simple-store-svelte').Writable<Record<string, import('comlink').Remote<import('@/modules/extensions/worker.js').Worker>>>} */
+  /** @type {import('simple-store-svelte').Writable<Record<string, import('comlink').Remote<import('@/modules/extensions/worker2.js').Worker>>>} */
   inactiveWorkers = writable({})
   /** @type {boolean} */
   #checkingForUpdates = false
