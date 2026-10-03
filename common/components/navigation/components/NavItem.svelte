@@ -33,7 +33,7 @@
    * @returns {() => void}
    */
   function getClick(item) {
-    if (item === 'DONATE') return () => { closeDrawer(); COMMON.openURI('https://contribute.shiru.app/') }
+    if (item === 'DONATE') return () => { closeDrawer(); COMMON.openURI('https://ko-fi.com/animenotebook') }
     else if (item === 'UPDATE_DOWNLOADING') return () => { closeDrawer(); toast.info('Update is downloading...', { description: 'This may take a moment, the update will be ready shortly.' }) }
     else if (item === 'UPDATE_READY') {
       return () => {

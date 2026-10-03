@@ -85,7 +85,7 @@ const commonDefaults = {
   notify: noopVoid,
   windowReady: noopVoid,
   isWindowVisible: noopAsyncBool,
-  openURI: noopAsyncVoid,
+  openURI: async (uri) => window.open(uri, '_blank'),
   pickFile: noopAsyncString,
   pickFolder: noopAsyncString,
   linkAccount: noopAsyncVoid,
