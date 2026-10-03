@@ -104,22 +104,29 @@ module.exports = (parentDir, alias = {}, aliasFields = 'browser', filename = 'ap
 <!-- SEO Meta Tags -->
 <title>KidZoo - Watch Free Anime Online</title>
 <meta name="description" content="KidZoo is a blazing fast, free anime streaming platform. Watch your favorite subbed and dubbed anime in high quality without any ads.">
-<meta name="keywords" content="anime, watch anime online, free anime, subbed anime, dubbed anime, streaming, KidZoo">
 <meta name="author" content="KidZoo">
 <meta name="robots" content="index, follow">
+<link rel="canonical" href="https://kidzoo.in/">
 
 <!-- Open Graph / Social Media Previews -->
 <meta property="og:title" content="KidZoo - Watch Free Anime Online">
-<meta property="og:description" content="Watch your favorite subbed and dubbed anime in high quality without any ads on KidZoo.">
+<meta property="og:description" content="KidZoo is a blazing fast, free anime streaming platform. Watch your favorite subbed and dubbed anime in high quality without any ads.">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://kidzoo-nodejs.vercel.app/">
-<meta property="og:image" content="https://kidzoo-nodejs.vercel.app/icon_filled.png">
+<meta property="og:url" content="https://kidzoo.in/">
+<meta property="og:image" content="https://kidzoo.in/icon_filled_notify.png">
+<meta property="og:site_name" content="KidZoo">
 
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary">
+<meta name="twitter:site" content="@animenotebook">
 <meta name="twitter:title" content="KidZoo - Watch Free Anime Online">
-<meta name="twitter:description" content="Watch your favorite subbed and dubbed anime in high quality without any ads on KidZoo.">
-<meta name="twitter:image" content="https://kidzoo-nodejs.vercel.app/icon_filled.png">
+<meta name="twitter:description" content="KidZoo is a blazing fast, free anime streaming platform. Watch your favorite subbed and dubbed anime in high quality without any ads.">
+<meta name="twitter:image" content="https://kidzoo.in/icon_filled_notify.png">
+
+<!-- JSON-LD Structured Data -->
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebSite","name":"KidZoo","url":"https://kidzoo.in","description":"KidZoo is a blazing fast, free anime streaming platform.","potentialAction":{"@type":"SearchAction","target":{"@type":"EntryPoint","urlTemplate":"https://kidzoo.in/?q={search_term_string}"},"query-input":"required name=search_term_string"}}
+</script>
 
 <link rel="preconnect" href="https://i.ytimg.com">
 <link rel="preconnect" href="https://www.youtube-nocookie.com">
