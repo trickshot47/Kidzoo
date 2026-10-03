@@ -1,0 +1,13 @@
+{
+  "rewrites": [
+    {
+      "source": "/cors-proxy",
+      "destination": "/api/cors-proxy"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "outputDirectory": "web/build"
+}

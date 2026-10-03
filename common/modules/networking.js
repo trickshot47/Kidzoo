@@ -81,7 +81,7 @@ window.fetch = async (...args) => {
       try {
         const parsed = new URL(targetUrl)
         if (['http:', 'https:'].includes(parsed.protocol) && parsed.hostname !== 'graphql.anilist.co' && parsed.hostname !== 'cp.cloudflare.com' && parsed.hostname !== location.hostname) {
-          targetUrl = `http://localhost:3000/cors-proxy?url=${encodeURIComponent(targetUrl)}`
+          targetUrl = `/cors-proxy?url=${encodeURIComponent(targetUrl)}`
         }
       } catch {}
     }
