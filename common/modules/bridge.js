@@ -45,8 +45,9 @@ const torrentDefaults = {
 }
 
 const isBrowser = !navigator.userAgent.toLowerCase().includes('electron') && !navigator.userAgent.toLowerCase().includes('android')
+const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
 
-if (isBrowser) {
+if (isBrowser && isLocalhost) {
     const ws = new WebSocket('ws://localhost:3001');
     const callbacks = {};
     
