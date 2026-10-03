@@ -365,6 +365,8 @@ class HistoryManager {
     if (type === 'modal') {
       const animeDetails = value?.[modal.ANIME_DETAILS]
       if (animeDetails?.data?.id) return `/anime/${animeDetails.data.id}`
+      // Modal is closing or has no anime — revert to current page URL
+      return this.getUrlForState('page', page.value)
     }
     return null
   }
