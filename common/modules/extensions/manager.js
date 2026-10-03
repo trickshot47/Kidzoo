@@ -531,7 +531,7 @@ class ExtensionManager {
         }
         try {
           if (this.#pendingWorkers.get(key) !== worker && this.activeWorkers.value[key] !== worker && this.inactiveWorkers.value[key] !== worker) return
-          const initialize = await worker.initialize(key, extension.type, newCode, { settings: settings.value.extensionsNew[key]?.settings ?? {}, bypassCORS: SUPPORTS.isAndroid })
+          const initialize = await worker.initialize(key, extension.type, newCode, { settings: settings.value.extensionsNew[key]?.settings ?? {}, bypassCORS: SUPPORTS.isAndroid, appOrigin: location.origin })
           if (!settings.value.extensionsNew[key]?.enabled) {
             debug(`Extension ${key} was disabled during code fetch, terminating...`)
             worker.terminate()

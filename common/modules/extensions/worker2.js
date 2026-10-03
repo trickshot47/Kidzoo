@@ -9,11 +9,8 @@ globalThis.fetch = async (url, options = {}) => {
     try {
       const parsed = new URL(targetUrl)
       if (['http:', 'https:'].includes(parsed.protocol) && parsed.hostname !== 'graphql.anilist.co' && parsed.hostname !== 'cp.cloudflare.com' && parsed.hostname !== 'localhost' && parsed.hostname !== '127.0.0.1' && parsed.hostname !== location.hostname) {
-        // Extract real origin if location.origin is 'null' (blob workers)
-        let origin = location.origin
-        if (origin === 'null' && location.href.startsWith('blob:')) {
-          origin = location.href.slice(5).split('/')[0] + '//' + location.href.slice(5).split('/')[2]
-        }
+        // Use the appOrigin passed from the main thread instead of location.origin
+        const origin = globalThis.appOrigin || location.origin
         targetUrl = `${origin}/cors-proxy?url=${encodeURIComponent(targetUrl)}`
       }
     } catch {}
@@ -66,6 +63,7 @@ class Worker {
    * @returns {Promise<{ validated: true } | { error: string } | { stub: boolean, error: string }>}
    */
   async initialize(id, type = 'torrent', module, opts) {
+    globalThis.appOrigin = opts.appOrigin
     this.type = type
     this.module = module
     try {
