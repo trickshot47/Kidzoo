@@ -1,0 +1,977 @@
+import { SUPPORTS } from '@/modules/support.js'
+import { writable } from 'simple-store-svelte'
+import { cubicOut, cubicIn } from 'svelte/easing'
+import levenshtein from 'js-levenshtein'
+import Fuse from 'fuse.js'
+
+export const codes = {
+  400: 'Bad Request',
+  401: 'Unauthorized',
+  402: 'Payment Required',
+  403: 'Forbidden',
+  404: 'Not Found',
+  406: 'Not Acceptable',
+  408: 'Request Time-out',
+  409: 'Conflict',
+  410: 'Gone',
+  412: 'Precondition Failed',
+  413: 'Request Entity Too Large',
+  422: 'Unprocessable Entity',
+  429: 'Too Many Requests',
+  500: 'Internal Server Error',
+  501: 'Not Implemented',
+  502: 'Bad Gateway',
+  503: 'Service Unavailable',
+  504: 'Gateway Time-out',
+  505: 'HTTP Version Not Supported',
+  506: 'Variant Also Negotiates',
+  507: 'Insufficient Storage',
+  509: 'Bandwidth Limit Exceeded',
+  510: 'Not Extended',
+  511: 'Network Authentication Required',
+  521: 'Web Server Is Down'
+}
+
+export const equalsIgnoreCase = (a, b) => a?.toLowerCase() === b?.toLowerCase()
+
+/**
+ * Returns a deterministic avatar filename based on the provided seed text.
+ *
+ * @param {string} text
+ * @returns {string}
+ */
+export const getAvatar = text => `avatar_${((String(text) || 'nan').split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % 4) + 1}.png`
+
+/**
+ * Checks whether a value is a valid finite number.
+ *
+ * @param {*} value - The value to check.
+ * @returns {boolean} True if the value is a finite number.
+ */
+export function isValidNumber(value) {
+  return typeof value === 'number' && Number.isFinite(value)
+}
+
+/**
+ * Gets the Hex Color of the String input.
+ * @param {string} str
+ * @returns {string} The full hex color of the string input.
+ */
+export function stringToHex(str) {
+  if (!str) return 'var(--highlight-color)'
+  let hash = 0
+  for (let i = 0; i < str.length; i++) {
+    hash = str.charCodeAt(i) + ((hash << 5) - hash)
+    hash = hash & hash
+  }
+  return `#${[(hash >> 16) & 0xff, (hash >> 8) & 0xff, hash & 0xff].map(x => x.toString(16).padStart(2, '0')).join('')}`
+}
+
+/**
+ * Converts text to ASCII-friendly form (fiancée to fiancee).
+ * This shouldn't be needed but as of 5/11/2026 AniList search has become very unusable
+ * even for exact title matching because they no longer support ASCII characters.
+ *
+ * @param {string} text
+ * @returns {string}
+ */
+export function normalizeASCII(text) {
+  return text
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[‘’]/g, "'")
+    .replace(/[“”]/g, '"')
+    .replace(/[–—]/g, '-')
+    .replace(/…/g, '...')
+    .replace(/\u00A0/g, ' ')
+}
+
+/**
+ * Creates a deferred promise that can be resolved or rejected manually.
+ * @returns {{ promise: Promise<boolean>, resolve: (value?: boolean) => void, reject: (reason?: any) => void }}
+ */
+export function createDeferred() {
+  let resolveFn
+  let rejectFn
+  const promise = new Promise((resolve, reject) => {
+    resolveFn = resolve
+    rejectFn = reject
+  })
+  if (typeof resolveFn !== 'function' || typeof rejectFn !== 'function') {
+    throw new Error('Failed to create deferred promise')
+  }
+  return { promise, resolve: resolveFn, reject: rejectFn }
+}
+
+/** Reactive root font size in pixels, updates when the document font size changes. */
+export const baseFontSize = (() => {
+  const store = writable(typeof getComputedStyle !== 'undefined' ? parseFloat(getComputedStyle(document.documentElement).fontSize) : 16)
+  const update = () => {
+    const fontSize = parseFloat(getComputedStyle(document.documentElement).fontSize)
+    if (Number.isFinite(fontSize)) store.value = fontSize
+  }
+  if (typeof ResizeObserver !== 'undefined') {
+    const observer = new ResizeObserver(update)
+    observer.observe(document.documentElement)
+  }
+  if (typeof MutationObserver !== 'undefined') {
+    const observer = new MutationObserver(update)
+    observer.observe(document.documentElement, { attributes: true })
+  }
+  return store
+})()
+
+/**
+ * Creates a Svelte action that observes DOM mutations on a node.
+ *
+ * @param {(mutations: MutationRecord[]) => void} callback Called whenever matching mutations are observed.
+ * @param {MutationObserverInit} options
+ * @returns {(node: HTMLElement) => { destroy: () => void }}
+ */
+export function mutationObserver(callback, options = {}) {
+  return (node) => {
+    const observer = new MutationObserver(callback)
+    observer.observe(node, options)
+    return { destroy: () => observer.disconnect() }
+  }
+}
+
+/**
+ * Creates a Svelte action that observes resize events on a node.
+ *
+ * @param {(node: HTMLElement, entry: ResizeObserverEntry) => void} callback Called on every resize and on settings update.
+ * @param {ResizeObserverOptions} [options]
+ * @returns {(node: HTMLElement, param?: any) => { update: () => void, destroy: () => void }}
+ */
+export function resizeObserver(callback, options = {}) {
+  return (node, _param) => {
+    const observer = new ResizeObserver(([entry]) => callback(node, entry))
+    observer.observe(node, options)
+    return {
+      update: () => requestAnimationFrame(() => callback(node, { contentRect: node.getBoundingClientRect() })),
+      destroy: () => observer.disconnect()
+    }
+  }
+}
+
+/**
+ * Converts a number of seconds into a human-readable countdown string.
+ *
+ * The output includes:
+ * - Days (`d`) if present
+ * - Hours (`h`) if days or hours are present
+ * - Minutes (`m`) if days, hours, or minutes are present
+ *
+ * Examples:
+ * - countdown(3661) → '1h 1m'
+ * - countdown(86461) → '1d 0h 1m'
+ *
+ * @param {number} s - The number of seconds (can be negative for a reverse countdown)
+ * @returns {string} A formatted time string like '2h 5m'
+ */
+export function countdown(s) {
+  s = Math.floor(Math.abs(s))
+  const d = Math.floor(s / 86400)
+  s -= d * 86400
+  const h = Math.floor(s / 3600)
+  s -= h * 3600
+  const m = Math.floor(s / 60)
+  const tmp = []
+  if (d) tmp.push(`${d}d`)
+  if (d || h) tmp.push(`${h}h`)
+  if (d || h || m) tmp.push(`${m}m`)
+  if (!d && !h && !m) tmp.push('1m') // Best not to show seconds if we don't update the time every second.
+  return tmp.join(' ')
+}
+
+const formatter = (typeof Intl !== 'undefined') && new Intl.RelativeTimeFormat('en')
+const formatterShort = (typeof Intl !== 'undefined') && new Intl.RelativeTimeFormat('en', { style: 'short' })
+const ranges = {
+  years: 3600 * 24 * 365,
+  months: 3600 * 24 * 30,
+  weeks: 3600 * 24 * 7,
+  days: 3600 * 24,
+  hours: 3600,
+  minutes: 60,
+  seconds: 1
+}
+
+/**
+ * @template T
+ * @param {T[]} arr
+ * @param {number} n
+ */
+export function * chunks (arr, n) {
+  for (let i = 0; i < arr.length; i += n) {
+    yield arr.slice(i, i + n)
+  }
+}
+
+/** @param {Date} date */
+export function since (date) {
+  const secondsElapsed = (date.getTime() - Date.now()) / 1000
+  for (const key in ranges) {
+    if (ranges[key] < Math.abs(secondsElapsed)) {
+      const delta = secondsElapsed / ranges[key]
+      // @ts-ignore
+      return formatter.format(Math.round(delta), key)
+    }
+  }
+}
+
+/** @param {Date} date */
+export function eta(date) {
+  const secondsElapsed = (date.getTime() - Date.now()) / 1000
+  if (!isFinite(secondsElapsed)) return '∞'
+  for (const [key, seconds] of Object.entries(ranges)) {
+    if (Math.abs(secondsElapsed) >= seconds) {
+      const delta = secondsElapsed / seconds
+      return formatterShort.format(Math.round(delta), key)
+    }
+  }
+  return formatterShort.format(1, 'second')
+}
+
+/**
+ * @param {Date} episodeDate
+ * @param {number} weeks The number of weeks past the episodeDate
+ * @param {boolean} skip Add the specified number of weeks regardless of the episodeDate having past.
+ * @returns {Date}
+ */
+export function past(episodeDate, weeks = 0, skip) {
+  if (episodeDate < new Date() || skip) {
+    episodeDate.setDate(episodeDate.getDate() + (7 * weeks))
+  }
+  return episodeDate
+}
+
+/**
+ * @param {Date} date
+ * @param {boolean} year
+ */
+export function monthDay(date, year = false) {
+  const day = date.getDate()
+  if (year) {
+    return new Intl.DateTimeFormat('en-US', {
+      month: 'long',
+      year: 'numeric'
+    }).format(date)
+  }
+  return (new Intl.DateTimeFormat('en-US', { month: 'long', day: 'numeric' }).format(date)) + (day % 10 === 1 && day !== 11 ? 'st' : day % 10 === 2 && day !== 12 ? 'nd' : day % 10 === 3 && day !== 13 ? 'rd' : 'th')
+}
+
+const units = [' B', ' kB', ' MB', ' GB', ' TB']
+export function fastPrettyBytes (num) {
+  if (isNaN(num)) return '0 B'
+  if (num < 1) return num + ' B'
+  const exponent = Math.min(Math.floor(Math.log(num) / Math.log(1000)), units.length - 1)
+  return Number((num / Math.pow(1000, exponent)).toFixed(2)) + units[exponent]
+}
+
+/** @type {DOMParser['parseFromString']} */
+export const DOMPARSER = (typeof DOMParser !== 'undefined') && DOMParser.prototype.parseFromString.bind(new DOMParser())
+
+export const sleep = t => new Promise(resolve => setTimeout(resolve, t).unref?.())
+
+/**
+ * Clamps a numeric value to a given minimum and maximum range.
+ *
+ * @param {number} value The value to clamp.
+ * @param {number} [min=0] The minimum value to clamp.
+ * @param {number} [max=0] The maximum value to clamp.
+ * @returns {number} The clamped value, guaranteed to be within the [min, max] range.
+ */
+export function clamp(value, min = 0, max = 100) {
+  return Math.min(Math.max(value, min), max)
+}
+
+export function toTS (sec, full) {
+  if (isNaN(sec) || sec < 0) {
+    switch (full) {
+      case 1:
+        return '0:00:00.00'
+      case 2:
+        return '0:00:00'
+      case 3:
+        return '00:00'
+      default:
+        return '0:00'
+    }
+  }
+  const hours = Math.floor(sec / 3600)
+  /** @type {any} */
+  let minutes = Math.floor(sec / 60) - hours * 60
+  /** @type {any} */
+  let seconds = full === 1 ? (sec % 60).toFixed(2) : Math.floor(sec % 60)
+  if (minutes < 10 && (hours > 0 || full)) minutes = '0' + minutes
+  if (seconds < 10) seconds = '0' + seconds
+  return (hours > 0 || full === 1 || full === 2) ? hours + ':' + minutes + ':' + seconds : minutes + ':' + seconds
+}
+
+const BASE32_ALPHABET = 'abcdefghijklmnopqrstuvwxyz234567'
+export function base32toHex(base32) {
+  let bits = ''
+  for (const char of base32.toLowerCase()) {
+    const val = BASE32_ALPHABET.indexOf(char)
+    if (val === -1) throw new Error(`Invalid base32 character: ${char}`)
+    bits += val.toString(2).padStart(5, '0')
+  }
+  bits = bits.slice(0, bits.length - (bits.length % 4))
+  let hex = ''
+  for (let i = 0; i < bits.length; i += 4) hex += parseInt(bits.slice(i, i + 4), 2).toString(16)
+  return hex
+}
+
+export function generateRandomHexCode (len) {
+  let hexCode = ''
+  while (hexCode.length < len) hexCode += (Math.round(Math.random() * 15)).toString(16)
+  return hexCode
+}
+
+export function generateRandomString(length) {
+  let string = ''
+  const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~'
+  for (let i = 0; i < length; i++) string += possible.charAt(Math.floor(Math.random() * possible.length))
+  return string
+}
+
+export function getRandomInt(min, max) {
+  min = Math.ceil(min)
+  max = Math.floor(max)
+  return Math.floor(Math.random() * (max - min + 1)) + min
+}
+
+/**
+ * Retrieves a nested value from an object using a dot-separated path.
+ * @param {Object} obj - The object to retrieve the value from.
+ * @param {string} path - The dot-separated path (e.g., 'title.userPreferred').
+ * @returns {*} - The value at the specified path or undefined.
+ */
+function getNestedValue(obj, path) {
+  return path.split('.').reduce((acc, key) => acc && acc[key], obj)
+}
+
+/**
+ * Sets a nested value in an object using a dot-separated path.
+ * @param {Object} obj - The object to modify.
+ * @param {string} path - The dot-separated path (e.g., 'title.userPreferred').
+ * @param {*} value - The value to set.
+ */
+function setNestedValue(obj, path, value) {
+  const keys = path.split('.')
+  let current = obj
+  while (keys.length > 1) {
+    const key = keys.shift()
+    if (!current[key] || typeof current[key] !== 'object') current[key] = {}
+    current = current[key]
+  }
+  current[keys[0]] = value
+}
+
+function replaceSeasonWithWords(text) {
+  const numberWords = {
+    1: 'One',
+    2: 'Two',
+    3: 'Three',
+    4: 'Four',
+    5: 'Five',
+    6: 'Six',
+    7: 'Seven',
+    8: 'Eight',
+    9: 'Nine',
+    10: 'Ten',
+    11: 'Eleven',
+    12: 'Twelve',
+    13: 'Thirteen',
+    14: 'Fourteen',
+    15: 'Fifteen',
+    16: 'Sixteen',
+    17: 'Seventeen',
+    18: 'Eighteen',
+    19: 'Nineteen',
+    20: 'Twenty'
+  }
+  return text.replace(/Season (\d{1,2})/gi, (match, num) => {
+    const word = numberWords[Number(num)]
+    return word ? `Season ${word}` : match
+  })
+}
+
+const hyphenRegex = /(\w)-(\w)/g
+// eslint-disable-next-line prefer-regex-literals
+const regex = !SUPPORTS.isAndroid ? new RegExp('[^\\p{L}\\p{N}\\p{Zs}\\p{Pd}]', 'gu')
+  // eslint-disable-next-line no-misleading-character-class
+  : /[^a-zA-Z0-9\s\-\u00C0-\u024F\u0400-\u04FF\u0370-\u03FF\u0600-\u06FF\u0900-\u097F\u4E00-\u9FFF]/g
+function cleanText(text) {
+  if (typeof text !== 'string') return ''
+  return replaceSeasonWithWords(text.replace(hyphenRegex, '$1 $2').replace(regex, ''))
+}
+
+/**
+ * @param {Object} nest The nested Object to use for looking up the keys.
+ * @param {String} phrase The key phrase to look for.
+ * @param {Array} keys Add the specified number of weeks regardless of the episodeDate having past.
+ * @param {number} threshold The allowed tolerance, typically for misspellings.
+ * @returns {boolean} If the target phrase has been found.
+ */
+export function matchKeys(nest, phrase, keys, threshold = 0.4) {
+  if (!phrase) return true
+  if (!nest) return false
+  const cleanedNest = {}
+  const cleanedPhrase = cleanText(phrase)
+  for (const key of keys) {
+    const value = getNestedValue(nest, key)
+    if (typeof value === 'string') setNestedValue(cleanedNest, key, cleanText(value))
+    else if (Array.isArray(value)) {
+      const cleanedArray = value.filter(v => typeof v === 'string').map(cleanText)
+      if (cleanedArray.length) setNestedValue(cleanedNest, key, cleanedArray)
+    }
+  }
+  if (new Fuse([cleanedNest], { includeScore: true, threshold, keys: keys }).search(cleanedPhrase).length > 0) return true
+  const fuse = new Fuse([cleanedPhrase], { includeScore: true, threshold })
+  return keys.some((key) => {
+    const valueToMatch = cleanedNest[key]
+    if (valueToMatch) return fuse.search(valueToMatch).length > 0
+    return false
+  })
+}
+
+/**
+ * Matches a search phrase against a given phrase or list of phrases using exact matching,
+ * substring inclusion, and Levenshtein distance for fuzzy matching.
+ *
+ * @param {string} search - The input string to search within.
+ * @param {string | string[]} phrase - The phrase or array of phrases to match against.
+ * @param {number} threshold - The maximum Levenshtein distance allowed for a match.
+ * @param {boolean} [strict=false] - If true, only considers whole phrase similarity instead of checking individual words or inclusion.
+ * @param {boolean} [soft=false] - If true, and initial match fails, it will do a final check using a Fuse search ignoring word location.
+ * @returns {boolean} - Returns true if a match is found, otherwise false.
+ */
+export function matchPhrase(search, phrase, threshold, strict = false, soft = false) {
+  if (!search || !phrase) return false
+  const normalizedSearch = search.toString().toLowerCase().replace(regex, '')
+  phrase = Array.isArray(phrase) ? phrase : [phrase]
+  for (const p of phrase) {
+    if (p) {
+      const normalizedPhrase = p.toLowerCase().replace(regex, '')
+      if (strict) {
+        if (levenshtein(normalizedSearch, normalizedPhrase) <= threshold) return true
+      } else {
+        if (normalizedSearch.includes(normalizedPhrase)) return true
+        const searchWords = normalizedSearch.split(/\s+/)
+        if (!soft) {
+          for (const word of searchWords) {
+            if (levenshtein(word, normalizedPhrase) <= threshold) return true
+          }
+        } else return new Fuse([normalizedPhrase], { includeScore: true, threshold, ignoreLocation: true, useExtendedSearch: true, isCaseSensitive: false }).search(normalizedSearch)?.length > 0
+      }
+    }
+  }
+  return false
+}
+
+/**
+ * Returns a derived store that only updates when the value changes deeply.
+ * Suppresses updates if the new value is equal to the previous one.
+ *
+ * @param {Readable<any>} store - The original Svelte store.
+ * @returns {Readable<any>} A derived store emitting distinct deep values.
+ */
+export function uniqueStore(store) {
+  let last = store.value
+  return {
+    subscribe(fn) {
+      return store.subscribe(($value) => {
+        if (last !== $value) {
+          last = $value
+          fn($value)
+        }
+      })
+    }
+  }
+}
+
+export function capitalize(str) {
+  return str?.replace(/\b\w/g, char => char.toUpperCase())
+}
+
+export function throttle (fn, time) {
+  let wait = false
+  return (...args) => {
+    if (!wait) {
+      fn(...args)
+      wait = true
+      setTimeout(() => {
+        wait = false
+      }, time).unref?.()
+    }
+  }
+}
+
+export function debounce (fn, time = 0) {
+  let timeout
+  return (...args) => {
+    const later = () => {
+      timeout = null
+      fn(...args)
+    }
+    clearTimeout(timeout)
+    timeout = setTimeout(later, time)
+    timeout.unref?.()
+  }
+}
+
+/**
+ * Fade in a node with vertical translation and scaling.
+ *
+ * @param {HTMLElement} node The DOM node to apply the transition to.
+ * @param {Object} [options] Configuration options for the transition.
+ * @param {number} [options.delay=0] Delay in milliseconds before the transition starts.
+ * @param {number} [options.duration=300] Duration of the transition in milliseconds.
+ * @param {number} [options.y=1.2] Vertical translation distance.
+ * @param {number} [options.startScale=0.95] Initial scale at the start of the transition.
+ * @param {function} [options.easing=cubicOut] Easing function for the transition.
+ * @returns {Object} Svelte transition object with delay, duration, easing, and css function.
+ */
+export function fadeIn(node, { delay = 0, duration = 300, y = 1.2, startScale = 0.95, easing = cubicOut } = {}) {
+  return {
+    delay,
+    duration,
+    easing,
+    css: (t, u) => `
+      opacity: ${t};
+      transform: translateY(${u * y}rem) scale(${startScale + (1 - startScale) * t});
+      transform-origin: bottom center;
+      will-change: transform, opacity;`
+  }
+}
+
+/**
+ * Fade out a node with vertical translation and scaling.
+ *
+ * @param {HTMLElement} node The DOM node to apply the transition to.
+ * @param {Object} [options] Configuration options for the transition.
+ * @param {number} [options.delay=0] Delay in milliseconds before the transition starts.
+ * @param {number} [options.duration=200] Duration of the transition in milliseconds.
+ * @param {number} [options.y=1.2] Vertical translation distance.
+ * @param {number} [options.endScale=0.95] Final scale at the end of the transition.
+ * @param {function} [options.easing=cubicIn] Easing function for the transition.
+ * @returns {Object} Svelte transition object with delay, duration, easing, and css function.
+ */
+export function fadeOut(node, { delay = 0, duration = 200, y = 1.2, endScale = 0.95, easing = cubicIn } = {}) {
+  return {
+    delay,
+    duration,
+    easing,
+    css: (t, u) => `
+        opacity: ${t};
+        transform: translateY(${u * y}rem) scale(${1 + (endScale - 1) * u});
+        transform-origin: bottom center;
+        will-change: transform, opacity;`
+  }
+}
+
+/**
+ * Horizontally shifts an element just enough to keep it inside the viewport.
+ * The individual translate property intentionally stays separate from transition transforms.
+ *
+ * @param {HTMLElement} node The element to keep visible.
+ * @param {number} [padding=0] Minimum distance from the viewport edge in pixels.
+ * @returns {{ destroy: () => void }} Svelte action lifecycle methods.
+ */
+export function clampToViewport(node, padding = 0) {
+  let frame
+  let scrollTimeout
+  let transitionTimeout
+  let shift = 0
+  const scrollContainer = node.closest('.gallery')
+  const originalTransition = {
+    value: node.style.getPropertyValue('transition'),
+    priority: node.style.getPropertyPriority('transition')
+  }
+
+  function restoreTransition() {
+    if (originalTransition.value) node.style.setProperty('transition', originalTransition.value, originalTransition.priority)
+    else node.style.removeProperty('transition')
+  }
+
+  function update() {
+    cancelAnimationFrame(frame)
+    frame = requestAnimationFrame(() => {
+      const rect = node.getBoundingClientRect()
+      const containerRect = scrollContainer?.getBoundingClientRect()
+      const leftEdge = Math.max(padding, (containerRect?.left ?? 0) + padding)
+      const rightEdge = Math.min(window.innerWidth - padding, (containerRect?.right ?? window.innerWidth) - padding)
+      const baseCenter = ((rect.left + rect.right) / 2) - shift
+      const baseLeft = baseCenter - (node.offsetWidth / 2)
+      const baseRight = baseCenter + (node.offsetWidth / 2)
+
+      if (node.offsetWidth > rightEdge - leftEdge || baseLeft < leftEdge) shift = leftEdge - baseLeft
+      else if (baseRight > rightEdge) shift = rightEdge - baseRight
+      else shift = 0
+
+      node.style.translate = `${shift}px 0`
+    })
+  }
+
+  function handleScroll() {
+    clearTimeout(scrollTimeout)
+    clearTimeout(transitionTimeout)
+    restoreTransition()
+    scrollTimeout = setTimeout(() => {
+      node.style.setProperty('transition', 'translate 120ms ease-out')
+      update()
+      transitionTimeout = setTimeout(restoreTransition, 180)
+      transitionTimeout.unref?.()
+    }, 120)
+    scrollTimeout.unref?.()
+  }
+
+  const resizeObserver = new ResizeObserver(update)
+  resizeObserver.observe(node)
+  window.addEventListener('resize', update)
+  scrollContainer?.addEventListener('scroll', handleScroll, { passive: true })
+  update()
+
+  return {
+    destroy() {
+      cancelAnimationFrame(frame)
+      clearTimeout(scrollTimeout)
+      clearTimeout(transitionTimeout)
+      restoreTransition()
+      resizeObserver.disconnect()
+      window.removeEventListener('resize', update)
+      scrollContainer?.removeEventListener('scroll', handleScroll)
+    }
+  }
+}
+
+/**
+ * General work-around for preventing the reactive animations for specific classes when they are not needed.
+ * Importing this and adding {$reactive ? `` : `not-reactive`} will disable reactivity for the added element when a trigger class is clicked.
+ *
+ * @param {[string]} triggerClasses The classes which need to be clicked to prevent reactivity.
+ * @returns { { reactive: Writable<boolean>, init: (create: boolean, boundary?: boolean) => void } } The initializer and reactive listener.
+ */
+export function createListener(triggerClasses = []) {
+  const reactive = writable(true)
+  let lastPointerType = null
+  let pointerTimeout = null
+  let handling = false
+  let bounds = false
+  let pending = null
+
+  function handleDown(event) {
+    const pointerType = event.pointerType ?? (event.type === 'touchstart' ? 'touch' : 'mouse')
+    if (!lastPointerType) {
+      lastPointerType = pointerType
+      if (pointerTimeout) clearTimeout(pointerTimeout)
+      pointerTimeout = setTimeout(() => {
+        lastPointerType = null
+        pointerTimeout = null
+      }, 5_000)
+    }
+    if (pointerType !== lastPointerType) return
+    if (triggerClasses.some(className => event.target.closest(`.${className}`))) reactive.set(bounds)
+    else if (bounds) {
+      pending = null
+      reactive.set(false)
+      if (upTimeout) clearTimeout(upTimeout)
+    }
+  }
+
+  let upTimeout = null
+  function handleUp(event) {
+    const pointerType = event.pointerType ?? (event.type === 'touchend' ? 'touch' : 'mouse')
+    if (pointerType !== lastPointerType) return
+    const handle = Symbol()
+    pending = handle
+    if (upTimeout) clearTimeout(upTimeout)
+    upTimeout = setTimeout(() => {
+      if (pending && pending === handle) reactive.set(true)
+    }, pointerType !== 'touch' ? 20 : 500)
+  }
+
+  function addListeners() {
+    document.addEventListener('mousedown', handleDown, true)
+    document.addEventListener('touchstart', handleDown, true)
+    if (!bounds) {
+      document.addEventListener('mouseup', handleUp, true)
+      document.addEventListener('touchend', handleUp, true)
+    }
+    handling = true
+  }
+
+  function removeListeners() {
+    document.removeEventListener('mousedown', handleDown, true)
+    document.removeEventListener('touchstart', handleDown, true)
+    if (!bounds) {
+      document.removeEventListener('mouseup', handleUp, true)
+      document.removeEventListener('touchend', handleUp, true)
+    }
+    handling = false
+  }
+
+  function init(create, boundary = false) {
+    bounds = boundary
+    if (create && !handling) addListeners()
+    else if (handling) removeListeners()
+  }
+
+  return { reactive, init }
+}
+
+export const defaults = {
+  volume: 1,
+  uiScale: 1,
+  customCSS: '',
+  presetTheme: 'default-dark',
+  updateChannel: 'stable',
+  updateVersion: undefined,
+  playerAutoplay: true,
+  playerPause: true,
+  playerAutocomplete: true,
+  playerAutocompleteThreshold: 85,
+  playerDeband: false,
+  preferDubs: false,
+  adult: 'none',
+  hentaiBanner: false,
+  rssAutoplay: true,
+  rssAutofile: true,
+  rssQuality: '1080',
+  rssFeedsNew: [],
+  rssNotify: ['CURRENT', 'PLANNING'],
+  systemNotify: true,
+  aniNotify: 'all',
+  releasesNotify: [],
+  subAnnounce: 'none',
+  dubAnnounce: 'none',
+  hentaiAnnounce: 'none',
+  customSections: [['Romance', ['Romance'], [], [], []], ['Isekai Comedy', ['Comedy'], ['Isekai'], [], []]],
+  torrentSpeed: 5,
+  torrentPersist: false,
+  torrentDHT: false,
+  torrentPeX: false,
+  torrentUTP: false,
+  torrentAutoScrape: true,
+  disableStartupTorrent: SUPPORTS.isAndroid,
+  torrentPort: 0,
+  torrentStreamedDownload: true,
+  torrentSort: 'seeders',
+  seedingLimit: !SUPPORTS.isAndroid ? 5 : 2,
+  dhtPort: 0,
+  missingFont: true,
+  maxConns: 50,
+  subtitleRenderHeight: SUPPORTS.isAndroid ? '720' : '0',
+  subtitleLanguage: 'eng',
+  audioLanguage: 'jpn',
+  torrentProvider: [],
+  enableDoH: false,
+  doHURL: 'https://cloudflare-dns.com/dns-query',
+  disableSubtitleBlur: SUPPORTS.isAndroid,
+  enableRPC: 'full',
+  cards: 'small',
+  cardPreview: true,
+  cardAudio: false,
+  toggleList: !SUPPORTS.isAndroid,
+  titleLang: 'romaji',
+  hideMyAnime: false,
+  toasts: 'All',
+  closeAction: 'Prompt',
+  offlineSync: true,
+  queryComplexity: 'Complex',
+  showLabels: true,
+  expandingSidebar: false,
+  torrentPathNew: undefined,
+  donate: true,
+  w2g: false,
+  font: undefined,
+  angle: 'default',
+  extensionsNew: {
+    'http://localhost:3000/extensions/index.json/anikoto-stream': {
+      enabled: true,
+      settings: {
+        apiUrl: 'http://localhost:4444/api',
+        preferDub: true
+      }
+    }
+  },
+  disableMiniplayer: false,
+  autoHideMiniplayer: true,
+  enableExternal: false,
+  autoFullscreen: true,
+  spoilers: 'off',
+  spoilerStatus: [],
+  playerPath: '',
+  playerSeek: 2,
+  playerSkip: false,
+  playerTitleTop: true,
+  playerCoverVideo: false,
+  playerChapterSkip: 'embedded',
+  configTrackers: false,
+  trackers: [
+    atob('dWRwOi8vb3Blbi5zdGVhbHRoLnNpOjgwL2Fubm91bmNl'),
+    atob('dWRwOi8vdHJhY2tlci5vcGVudHJhY2tyLm9yZzoxMzM3L2Fubm91bmNl'),
+    atob('dWRwOi8vZXhvZHVzLmRlc3luYy5jb206Njk2OS9hbm5vdW5jZQ=='),
+    atob('dWRwOi8vdHJhY2tlci5jb3BwZXJzdXJmZXIudGs6Njk2OS9hbm5vdW5jZQ=='),
+    atob('dWRwOi8vOS5yYXJiZy50bzoyNzEwL2Fubm91bmNl'),
+    atob('dWRwOi8vdHJhY2tlci50b3JyZW50LmV1Lm9yZzo0NTEvYW5ub3VuY2U='),
+    atob('aHR0cDovL29wZW4uYWNnbnh0cmFja2VyLmNvbTo4MC9hbm5vdW5jZQ=='),
+    atob('aHR0cDovL2FuaWRleC5tb2U6Njk2OS9hbm5vdW5jZQ=='),
+    atob('aHR0cDovL255YWEudHJhY2tlci53Zjo3Nzc3L2Fubm91bmNl'),
+    atob('aHR0cHM6Ly90cmFja2VyLm5la29idC50by9hcGkvdHJhY2tlci9wdWJsaWMvYW5ub3VuY2U='),
+    atob('aHR0cDovL3RyYWNrZXIuYW5pcmVuYS5jb206ODAvYW5ub3VuY2U='),
+    atob('d3NzOi8vdHJhY2tlci5vcGVud2VidG9ycmVudC5jb20='),
+    atob('d3NzOi8vdHJhY2tlci53ZWJ0b3JyZW50LmRldg=='),
+    atob('d3NzOi8vdHJhY2tlci5maWxlcy5mbTo3MDczL2Fubm91bmNl'),
+    atob('d3NzOi8vdHJhY2tlci5idG9ycmVudC54eXov')
+  ]
+}
+
+/**
+ * @typedef {Object} GeneralDefaults
+ * @property {Array<any>} sync
+ * @property {Array<any>} syncQueueAni
+ * @property {Array<any>} syncQueueMal
+ * @property {typeof defaults} settings
+ * @property {any} [loadedTorrent]
+ * @property {any} [stagingTorrents]
+ * @property {any} [seedingTorrents]
+ * @property {any} [completedTorrents]
+ * @property {string} posMiniplayer
+ * @property {string} widthMiniplayer
+ */
+export const generalDefaults = {
+  sync: [],
+  syncQueueAni: [],
+  syncQueueMal: [],
+  settings: defaults,
+  loadedTorrent: undefined,
+  stagingTorrents: [],
+  seedingTorrents: [],
+  completedTorrents: [],
+  posMiniplayer: 'bottom right',
+  widthMiniplayer: '0px'
+}
+
+/**
+ * @typedef {Object} HistoryDefaults
+ * @property {any} [lastMagnet]
+ * @property {any} [lastBoosted]
+ * @property {any} [lastSubtitle]
+ * @property {any} [lastSearched]
+ * @property {any} [lastSchedule]
+ * @property {any} [animeResolvedHash]
+ * @property {any} [animeEpisodeProgress]
+ */
+export const historyDefaults = {
+  lastMagnet: undefined,
+  lastBoosted: undefined,
+  lastSubtitle: undefined,
+  lastSearched: undefined,
+  lastSchedule: undefined,
+  animeResolvedHash: [],
+  animeEpisodeProgress: []
+}
+
+/**
+ * @typedef {Object} ExtensionDefaults
+ * @property {any} [extensionSources]
+ * @property {any} [repositorySources]
+ */
+export const extensionDefaults = {
+  extensionSources: {
+    'http://localhost:3000/extensions/index.json/anikoto-stream': {
+      name: 'AniKoto',
+      author: 'KidZoo',
+      description: 'AniKoto source extension for streaming anime.',
+      type: 'source',
+      main: 'http://localhost:3000/extensions/sources/anikoto.js',
+      update: 'http://localhost:3000/extensions/index.json',
+      id: 'anikoto-stream',
+      settings: [
+        {
+          key: 'apiUrl',
+          name: 'AniKoto API URL',
+          description: 'The AniKoto streaming backend URL.',
+          type: 'string',
+          default: 'http://localhost:4444/api'
+        },
+        {
+          key: 'preferDub',
+          name: "Prefer Dub",
+          description: "Prioritize dubbed episodes.",
+          type: "boolean",
+          default: true
+        }
+      ]
+    }
+  },
+  repositorySources: {
+    'http://localhost:3000/extensions/index.json': [
+      {
+        name: 'AniKoto',
+        author: 'KidZoo',
+        description: 'AniKoto source extension for streaming anime.',
+        type: 'source',
+        main: 'http://localhost:3000/extensions/sources/anikoto.js',
+        update: 'http://localhost:3000/extensions/index.json',
+        id: 'anikoto-stream',
+        settings: [
+          {
+            key: 'apiUrl',
+            name: 'AniKoto API URL',
+            description: 'The AniKoto streaming backend URL.',
+            type: 'string',
+            default: 'http://localhost:4444/api'
+          },
+          {
+            key: 'preferDub',
+            name: "Prefer Dub",
+            description: "Prioritize dubbed episodes.",
+            type: "boolean",
+            default: true
+          }
+        ]
+      }
+    ]
+  }
+}
+
+/**
+ * @typedef {Object} NotifyDefaults
+ * @property {Record<string, any>} lastRSS
+ * @property {number} lastAni
+ * @property {number} lastDub
+ * @property {number} lastSub
+ * @property {number} lastHentai
+ * @property {any[]} delayedDubs
+ * @property {any[]} announcedDubs
+ * @property {any[]} announcedSubs
+ * @property {any[]} announcedHentais
+ * @property {any[]} incomingNotifications
+ * @property {any[]} notifications
+ */
+export const notifyDefaults = {
+  lastRSS: {},
+  lastAni: 0,
+  lastDub: 0,
+  lastSub: 0,
+  lastHentai: 0,
+  delayedDubs: [],
+  announcedDubs: [],
+  announcedSubs: [],
+  announcedHentais: [],
+  incomingNotifications: [],
+  notifications: []
+}
+
+export const subtitleExtensions = ['srt', 'vtt', 'ass', 'ssa', 'sub', 'txt']
+export const subRx = new RegExp(`.(${subtitleExtensions.join('|')})$`, 'i')
+
+export const videoExtensions = ['iframe', '3g2', '3gp', 'asf', 'avi', 'dv', 'flv', 'gxf', 'm2ts', 'm4a', 'm4b', 'm4p', 'm4r', 'm4v', 'mkv', 'mov', 'mp4', 'mpd', 'mpeg', 'mpg', 'mxf', 'nut', 'ogm', 'ogv', 'swf', 'ts', 'vob', 'webm', 'wmv', 'wtv']
+export const videoRx = new RegExp(`.(${videoExtensions.join('|')})$`, 'i')
+
+// freetype supported
+export const fontExtensions = ['ttf', 'ttc', 'woff', 'woff2', 'otf', 'cff', 'otc', 'pfa', 'pfb', 'pcf', 'fnt', 'bdf', 'pfr', 'eot']
+export const fontRx = new RegExp(`.(${fontExtensions.join('|')})$`, 'i')
