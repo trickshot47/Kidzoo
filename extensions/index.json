@@ -4,7 +4,7 @@
     "name": "AniKoto",
     "version": "1.0.1",
     "main": "sources/anikoto",
-    "update": "http://localhost:3000/extensions/index.json",
+    "update": "/extensions/index.json",
     "type": "stream",
     "speed": "fast",
     "accuracy": "high",
