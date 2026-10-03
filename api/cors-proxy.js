@@ -26,6 +26,15 @@ export default async function handler(req, res) {
     return res.status(403).json({ error: 'Loopback addresses are not allowed' })
   }
 
+  // Handle CORS preflight
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS, HEAD, PUT, DELETE')
+  res.setHeader('Access-Control-Allow-Headers', '*')
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end()
+  }
+
   try {
     const proxyRes = await fetch(targetUrl, {
       method: req.method,
