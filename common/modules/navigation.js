@@ -344,6 +344,32 @@ class HistoryManager {
   }
 
   /**
+   * Maps a page/modal state to a browser URL path.
+   * @param {string} type 'page' or 'modal'
+   * @param {any} value The state value
+   * @returns {string|null} URL path, or null if the URL shouldn't change
+   */
+  getUrlForState(type, value) {
+    if (type === 'page') {
+      const map = {
+        home: '/',
+        search: '/search',
+        schedule: '/schedule',
+        settings: '/settings',
+        player: '/player',
+        torrent_manager: '/downloads',
+        watch_together: '/watch-together'
+      }
+      return map[value] || '/'
+    }
+    if (type === 'modal') {
+      const animeDetails = value?.[modal.ANIME_DETAILS]
+      if (animeDetails?.data?.id) return `/anime/${animeDetails.data.id}`
+    }
+    return null
+  }
+
+  /**
    * Initializes the HistoryManager, subscribing to stores and adding the initial page entry.
    */
   initialize() {
@@ -359,8 +385,31 @@ class HistoryManager {
         })
       )
     }
-    this.addHistoryEntry('page', 'home')
-    window.history.replaceState({ index: this.currentIndex }, '')
+
+    // Restore state from the current URL on first load
+    const path = window.location.pathname
+    if (path && path !== '/' && path !== '/index.html') {
+      debug('Restoring from URL path:', path)
+      if (path === '/search') { this.setIgnoreNext(() => page.set('search')); this.addHistoryEntry('page', 'search') }
+      else if (path === '/schedule') { this.setIgnoreNext(() => page.set('schedule')); this.addHistoryEntry('page', 'schedule') }
+      else if (path === '/settings') { this.setIgnoreNext(() => page.set('settings')); this.addHistoryEntry('page', 'settings') }
+      else if (path === '/downloads') { this.setIgnoreNext(() => page.set('torrent_manager')); this.addHistoryEntry('page', 'torrent_manager') }
+      else if (path === '/watch-together') { this.setIgnoreNext(() => page.set('watch_together')); this.addHistoryEntry('page', 'watch_together') }
+      else if (path.startsWith('/anime/')) {
+        const id = parseInt(path.split('/anime/')[1])
+        if (id) {
+          this.addHistoryEntry('page', 'home')
+          cache.isReady.then(() => cache.requestMedia(id, false)).then(media => {
+            if (media) modal.open(modal.ANIME_DETAILS, media)
+          }).catch(err => debug('Failed to restore anime from URL:', err))
+        } else { this.addHistoryEntry('page', 'home') }
+      } else { this.addHistoryEntry('page', 'home') }
+    } else {
+      this.addHistoryEntry('page', 'home')
+    }
+
+    const url = this.getUrlForState(this.history[this.currentIndex]?.type, this.history[this.currentIndex]?.value)
+    window.history.replaceState({ index: this.currentIndex }, '', url || window.location.pathname)
     this.syncState()
   }
 
@@ -479,7 +528,8 @@ class HistoryManager {
     this.history = this.history.slice(0, this.currentIndex + 1)
     this.history.push(state)
     this.currentIndex = this.history.length - 1
-    window.history.pushState({ index: this.currentIndex }, '')
+    const url = this.getUrlForState(type, value)
+    window.history.pushState({ index: this.currentIndex }, '', url || window.location.pathname)
     debug('History added', JSON.stringify(state), 'currentIndex', this.currentIndex, 'historyLength', this.history.length)
     this.syncState()
   }
