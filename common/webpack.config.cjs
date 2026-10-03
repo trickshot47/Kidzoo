@@ -98,7 +98,26 @@ module.exports = (parentDir, alias = {}, aliasFields = 'browser', filename = 'ap
 <meta name="theme-color" content="#17191C">
 <meta name="darkreader-lock">
 <meta name="color-scheme" content="dark">
-<title>KidZoo</title>
+
+<!-- SEO Meta Tags -->
+<title>KidZoo - Watch Free Anime Online</title>
+<meta name="description" content="KidZoo is a blazing fast, free anime streaming platform. Watch your favorite subbed and dubbed anime in high quality without any ads.">
+<meta name="keywords" content="anime, watch anime online, free anime, subbed anime, dubbed anime, streaming, KidZoo">
+<meta name="author" content="KidZoo">
+<meta name="robots" content="index, follow">
+
+<!-- Open Graph / Social Media Previews -->
+<meta property="og:title" content="KidZoo - Watch Free Anime Online">
+<meta property="og:description" content="Watch your favorite subbed and dubbed anime in high quality without any ads on KidZoo.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://kidzoo-nodejs.vercel.app/">
+<meta property="og:image" content="https://kidzoo-nodejs.vercel.app/icon_filled.png">
+
+<!-- Twitter Card -->
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="KidZoo - Watch Free Anime Online">
+<meta name="twitter:description" content="Watch your favorite subbed and dubbed anime in high quality without any ads on KidZoo.">
+<meta name="twitter:image" content="https://kidzoo-nodejs.vercel.app/icon_filled.png">
 
 <link rel="preconnect" href="https://i.ytimg.com">
 <link rel="preconnect" href="https://www.youtube-nocookie.com">
