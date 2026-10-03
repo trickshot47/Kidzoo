@@ -1,4 +1,4 @@
-// AbstractSource inlined to avoid localhost import dependency in production
+// AbstractSource inlined to avoid import dependency in production
 class AbstractSource {
   single (options) { throw new Error('Source does not implement method #single()') }
   batch (options) { throw new Error('Source does not implement method #batch()') }
@@ -8,24 +8,15 @@ class AbstractSource {
 
 /**
  * AniKoto streaming source extension.
- * Fetches real-time stream URLs from anikototv.to via a locally-running AniKotoAPI instance.
+ * Fetches real-time stream URLs from anikototv.to via the AniKoto API.
  *
- * Setup:
- *  1. Clone https://github.com/Shineii86/AniKotoAPI
- *  2. Run `npm install && npm run dev` (starts on port 4444)
- *  3. Enable this extension in Shiru settings
- *
- * Streaming flow:
- *  Search → Get episodes by animeId → Get servers by server_ids → Get embed URL → Play
+ * All fetch() calls are automatically proxied through /cors-proxy by the
+ * extension worker's globalThis.fetch override — no manual proxying needed.
  *
  * @extends AbstractSource
  */
 export default new class AniKotoSource extends AbstractSource {
   settings = {}
-
-  get #healthUrl() {
-    return (this.settings?.apiUrl?.replace(/\/$/, '') || 'https://anikoto-api-psi.vercel.app') + '/api/health'
-  }
 
   get #apiBase() {
     return (this.settings?.apiUrl?.replace(/\/$/, '') || 'https://anikoto-api-psi.vercel.app') + '/api'
@@ -33,12 +24,6 @@ export default new class AniKotoSource extends AbstractSource {
 
   get #preferDub() {
     return this.settings?.preferDub ?? true
-  }
-
-  // Route all API fetches through the CORS proxy so the browser doesn't block them
-  async #proxiedFetch(url) {
-    const proxyUrl = `${location.origin}/cors-proxy?url=${encodeURIComponent(url)}`
-    return fetch(proxyUrl)
   }
 
   /**
@@ -49,7 +34,7 @@ export default new class AniKotoSource extends AbstractSource {
   async #searchAnime(titles) {
     for (const title of titles) {
       try {
-        const res = await this.#proxiedFetch(`${this.#apiBase}/search?keyword=${encodeURIComponent(title)}`)
+        const res = await fetch(`${this.#apiBase}/search?keyword=${encodeURIComponent(title)}`)
         if (!res.ok) continue
         const json = await res.json()
         const results = json?.results?.data
@@ -73,7 +58,7 @@ export default new class AniKotoSource extends AbstractSource {
    * @returns {Promise<string|null>} The server_ids string for the episode
    */
   async #getEpisodeServerIds(animeId, episodeNumber) {
-    const res = await this.#proxiedFetch(`${this.#apiBase}/episodes/${animeId}`)
+    const res = await fetch(`${this.#apiBase}/episodes/${animeId}`)
     if (!res.ok) return null
     const json = await res.json()
     const episodes = json?.results?.episodes
@@ -88,7 +73,7 @@ export default new class AniKotoSource extends AbstractSource {
    * @returns {Promise<Array>} List of server objects with link_id, name, type
    */
   async #getServers(serverIds) {
-    const res = await this.#proxiedFetch(`${this.#apiBase}/servers?ids=${encodeURIComponent(serverIds)}`)
+    const res = await fetch(`${this.#apiBase}/servers?ids=${encodeURIComponent(serverIds)}`)
     if (!res.ok) return []
     const json = await res.json()
     return json?.results || []
@@ -100,7 +85,7 @@ export default new class AniKotoSource extends AbstractSource {
    * @returns {Promise<string|null>} The embed URL
    */
   async #getStreamUrl(linkId) {
-    const res = await this.#proxiedFetch(`${this.#apiBase}/stream?id=${encodeURIComponent(linkId)}`)
+    const res = await fetch(`${this.#apiBase}/stream?id=${encodeURIComponent(linkId)}`)
     if (!res.ok) return null
     const json = await res.json()
     return json?.results?.url || null
@@ -193,7 +178,8 @@ export default new class AniKotoSource extends AbstractSource {
 
   async validate() {
     try {
-      const res = await this.#proxiedFetch(this.#healthUrl)
+      const healthUrl = `${this.#apiBase}/health`
+      const res = await fetch(healthUrl)
       const json = await res.json()
       return json?.success === true
     } catch {
