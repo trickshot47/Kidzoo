@@ -1,4 +1,4 @@
-import AbstractSource from 'http://localhost:3000/extensions/sources/abstract.js'
+import AbstractSource from `${location.origin}/extensions/sources/abstract.js`
 
 /**
  * AniKoto streaming source extension.
@@ -15,11 +15,14 @@ import AbstractSource from 'http://localhost:3000/extensions/sources/abstract.js
  * @extends AbstractSource
  */
 export default new class AniKotoSource extends AbstractSource {
-  url = 'http://localhost:4444/api/health'
   settings = {}
 
+  get #healthUrl() {
+    return (this.settings?.apiUrl?.replace(/\/$/, '') || 'https://anikoto-api-psi.vercel.app') + '/api/health'
+  }
+
   get #apiBase() {
-    return (this.settings?.apiUrl?.replace(/\/$/, '') || 'http://localhost:4444') + '/api'
+    return (this.settings?.apiUrl?.replace(/\/$/, '') || 'https://anikoto-api-psi.vercel.app') + '/api'
   }
 
   get #preferDub() {
@@ -178,7 +181,7 @@ export default new class AniKotoSource extends AbstractSource {
 
   async validate() {
     try {
-      const res = await fetch(this.url)
+      const res = await fetch(this.#healthUrl)
       const json = await res.json()
       return json?.success === true
     } catch {
