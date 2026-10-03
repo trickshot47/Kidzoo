@@ -1106,24 +1106,7 @@ class ExtensionManager {
       } finally {
         this.#skipSourceUpdateCheck = false
       }
-      if (readyUpdates.length) {
-        toast.success(`Updated ${readyUpdates.length} extension${readyUpdates.length > 1 ? 's' : ''}`, {
-          description: readyUpdates.map(({ oldId }) => currentExtensions[oldId]?.name || oldId).join(', '),
-          duration: 8_000
-        })
-      }
-      if (confirmedMissing.length) {
-        toast.success(`Removed ${confirmedMissing.length} unavailable extension${confirmedMissing.length > 1 ? 's' : ''}`, {
-          description: confirmedMissing.map(oldId => currentExtensions[oldId]?.name || oldId).join(', '),
-          duration: 8_000
-        })
-      }
-      if (toAdd.length) {
-        toast.success(`Added ${toAdd.length} new extension${toAdd.length > 1 ? 's' : ''}`, {
-          description: toAdd.map(extension => extension.name || extension.id).join(', '),
-          duration: 10_000
-        })
-      }
+
       return true
     } catch (error) {
       await printError('Extension update check failed', 'The previously cached version will be used if available', error)
