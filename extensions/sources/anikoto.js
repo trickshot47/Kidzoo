@@ -19,7 +19,11 @@ export default new class AniKotoSource extends AbstractSource {
   settings = {}
 
   get #apiBase() {
-    return (this.settings?.apiUrl?.replace(/\/$/, '') || 'https://anikoto-api-psi.vercel.app') + '/api'
+    let url = this.settings?.apiUrl?.replace(/\/$/, '') || 'https://anikoto-api-psi.vercel.app'
+    if (url.includes('localhost') || url.includes('127.0.0.1')) {
+      url = 'https://anikoto-api-psi.vercel.app'
+    }
+    return url + '/api'
   }
 
   get #preferDub() {
