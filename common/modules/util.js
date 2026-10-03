@@ -881,13 +881,13 @@ export const historyDefaults = {
  */
 export const extensionDefaults = {
   extensionSources: {
-    'http://localhost:3000/extensions/index.json/anikoto-stream': {
+    [`${window.location.origin}/extensions/index.json/anikoto-stream`]: {
       name: 'AniKoto',
       author: 'KidZoo',
       description: 'AniKoto source extension for streaming anime.',
       type: 'source',
-      main: 'http://localhost:3000/extensions/sources/anikoto.js',
-      update: 'http://localhost:3000/extensions/index.json',
+      main: `${window.location.origin}/extensions/sources/anikoto.js`,
+      update: `${window.location.origin}/extensions/index.json`,
       id: 'anikoto-stream',
       settings: [
         {
@@ -895,7 +895,7 @@ export const extensionDefaults = {
           name: 'AniKoto API URL',
           description: 'The AniKoto streaming backend URL.',
           type: 'string',
-          default: 'http://localhost:4444/api'
+          default: 'https://anikoto-api-psi.vercel.app/api'
         },
         {
           key: 'preferDub',
@@ -908,14 +908,14 @@ export const extensionDefaults = {
     }
   },
   repositorySources: {
-    'http://localhost:3000/extensions/index.json': [
+    [`${window.location.origin}/extensions/index.json`]: [
       {
         name: 'AniKoto',
         author: 'KidZoo',
         description: 'AniKoto source extension for streaming anime.',
         type: 'source',
-        main: 'http://localhost:3000/extensions/sources/anikoto.js',
-        update: 'http://localhost:3000/extensions/index.json',
+        main: `${window.location.origin}/extensions/sources/anikoto.js`,
+        update: `${window.location.origin}/extensions/index.json`,
         id: 'anikoto-stream',
         settings: [
           {
@@ -923,7 +923,7 @@ export const extensionDefaults = {
             name: 'AniKoto API URL',
             description: 'The AniKoto streaming backend URL.',
             type: 'string',
-            default: 'http://localhost:4444/api'
+            default: 'https://anikoto-api-psi.vercel.app/api'
           },
           {
             key: 'preferDub',
